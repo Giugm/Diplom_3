@@ -8,75 +8,58 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class RegistrationPage {
     private final WebDriver driver;
-    private final WebDriverWait wait; // <-- добавлено
-
-    public RegistrationPage(WebDriver driver, WebDriverWait wait) { // <-- обновлённый конструктор
-        this.driver = driver;
-        this.wait = wait;
-    }
-
-    // Кнопка перехода на регистрацию
-    private final By goToRegisterButton = By.xpath("//*[@href='/register']");
+    private final WebDriverWait wait;
+    private final String url = "/register";
 
     private final By nameInput = By.xpath("//label[text()='Имя']/following-sibling::input");
     private final By emailInput = By.xpath("//label[text()='Email']/following-sibling::input");
     private final By passwordInput = By.xpath("//label[text()='Пароль']/following-sibling::input");
-    private final By registerButton = By.xpath("//button[contains(text(),'Зарегистрироваться')]");
-    private final By errorText = By.xpath("//p[contains(text(), 'Некорректный пароль')]");
-    private final By loginEmailInput = By.xpath("//label[contains(text(),'Email')]/following-sibling::input");
-    private final By loginPasswordInput = By.xpath("//label[contains(text(),'Пароль')]/following-sibling::input");
-    private final By loginButton = By.xpath("//button[contains(text(),'Войти')]");
+    private final By registerButton = By.xpath("//button[text()='Зарегистрироваться']");
+    private final By passwordErrorText = By.xpath("//p[text()='Некорректный пароль']");
+    private final By loginLink = By.xpath("//a[@href='/login']");
 
-
-    @Step("Переход на страницу регистрации")
-    public void goToRegistrationForm() {
-        driver.findElement(goToRegisterButton).click();
+    public RegistrationPage(WebDriver driver, WebDriverWait wait) {
+        this.driver = driver;
+        this.wait = wait;
     }
 
-    @Step("Ввод имени: {name}")
-    public void enterName(String name) {
-        driver.findElement(nameInput).sendKeys(name);
+    @Step("Открыть страницу регистрации")
+    public void open(){
+        driver.get(utils.Config.get("base.url") + url);
     }
 
-    @Step("Ввод почты: {email}")
-    public void enterEmail(String email) {
+    @Step("Клик по ссылке 'Войти'")
+    public void clickLoginLink(){
+        wait.until(ExpectedConditions.elementToBeClickable(loginLink)).click();
+    }
+
+    @Step("Заполнить поле 'Имя': {name}")
+    public void setName(String name) {
+        wait.until(ExpectedConditions.visibilityOfElementLocated(nameInput)).sendKeys(name);
+    }
+
+    @Step("Заполнить поле 'Email': {email}")
+    public void setEmail(String email) {
         driver.findElement(emailInput).sendKeys(email);
     }
 
-    @Step("Ввод пароля")
-    public void enterPassword(String password) {
+    @Step("Заполнить поле 'Пароль'")
+    public void setPassword(String password) {
         driver.findElement(passwordInput).sendKeys(password);
     }
 
-    @Step("Нажатие кнопки Зарегистрироваться")
-    public void clickRegister() {
+    @Step("Нажать кнопку 'Зарегистрироваться'")
+    public void clickRegisterButton() {
         driver.findElement(registerButton).click();
     }
 
-    @Step("Получение текста ошибки")
-    public String getPasswordErrorText() {
-        return driver.findElement(errorText).getText();
+    @Step("Проверить видимость ошибки о некорректном пароле")
+    public boolean isPasswordErrorVisible() {
+        try {
+            wait.until(ExpectedConditions.visibilityOfElementLocated(passwordErrorText));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
-
-    public boolean isErrorVisible() {
-        return driver.findElements(errorText).size() > 0;
-    }
-
-    @Step("Ввод email для логина: {email}")
-    public void enterLoginEmail(String email) {
-        driver.findElement(loginEmailInput).sendKeys(email);
-    }
-
-    @Step("Ввод пароля для логина")
-    public void enterLoginPassword(String password) {
-
-        driver.findElement(loginPasswordInput).sendKeys(password);
-    }
-
-    @Step("Нажатие кнопки 'Войти' на форме логина")
-    public void clickLoginButton() {
-        driver.findElement(loginButton).click();
-    }
-
 }
-

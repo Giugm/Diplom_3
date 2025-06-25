@@ -1,89 +1,61 @@
 package tests;
 
-import io.qameta.allure.*;
-import org.junit.jupiter.api.*;
-import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.support.ui.*;
+import api.UserClient;
+import api.models.User;
+import io.qameta.allure.Epic;
+import io.qameta.allure.Feature;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import pages.HeaderPage;
+import pages.LoginPage;
+import pages.ProfilePage;
+import utils.BaseTest;
+import utils.UserGenerator;
 
-import java.time.Duration;
-import java.util.UUID;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.jupiter.api.Assertions.*;
-import io.qameta.allure.junit5.AllureJunit5;
-import org.junit.jupiter.api.extension.ExtendWith;
+@Epic("Авторизация пользователя")
+@Feature("Выход из системы")
+public class LogoutTest extends BaseTest {
 
-
-@ExtendWith(AllureJunit5.class)
-@Epic("Stellar Burgers")
-@Feature("Выход из аккаунта")
-public class LogoutTest {
-
-    private WebDriver driver;
-    private WebDriverWait wait;
-    private final String baseUrl = "https://stellarburgers.nomoreparties.site";
-
-    private final String email = generateEmail();
-    private final String password = "test123";
-    private final String name = "TestUser";
+    private User user;
+    private String accessToken;
 
     @BeforeEach
-    void setUp() {
-        driver = new ChromeDriver();
-        driver.manage().window().maximize();
-        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+    void setupUserAndLogin() {
+        user = UserGenerator.randomUser();
+        accessToken = UserClient.registerUser(user)
+                .then().extract().body().path("accessToken");
 
-        // Регистрируем и логинимся
-        driver.get(baseUrl + "/register");
-        waitAndSendKeys(By.xpath("//label[text()='Имя']/following-sibling::input"), name);
-        waitAndSendKeys(By.xpath("//label[text()='Email']/following-sibling::input"), email);
-        waitAndSendKeys(By.xpath("//label[text()='Пароль']/following-sibling::input"), password);
-        waitAndClick(By.xpath("//button[text()='Зарегистрироваться']"));
-
-        // Логинимся
-        wait.until(ExpectedConditions.urlContains("/login"));
-        waitAndSendKeys(By.xpath("//label[text()='Email']/following-sibling::input"), email);
-        waitAndSendKeys(By.xpath("//label[text()='Пароль']/following-sibling::input"), password);
-        waitAndClick(By.xpath("//button[contains(text(),'Войти')]"));
-
-        // Убедимся, что попали на главную
-        wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//*[text()='Оформить заказ']")));
+        LoginPage loginPage = new LoginPage(driver, wait);
+        loginPage.open();
+        loginPage.login(user.getEmail(), user.getPassword());
     }
 
     @AfterEach
-    void tearDown() {
-        driver.quit();
+    void cleanupUser(){
+        // Пользователь уже вышел из системы, токен для удаления у нас есть
+        UserClient.deleteUser(accessToken);
     }
 
     @Test
-    @DisplayName("Выход из аккаунта через личный кабинет")
-    @Severity(SeverityLevel.CRITICAL)
-    void logoutFromProfile() {
-        // Переходим в ЛК
-        waitAndClick(By.xpath("//*[text()='Личный Кабинет']"));
+    @DisplayName("Выход из аккаунта через кнопку 'Выход' в личном кабинете")
+    void logoutViaProfileButtonIsSuccessful() {
+        HeaderPage header = new HeaderPage(driver, wait);
+        ProfilePage profilePage = new ProfilePage(driver, wait);
+        LoginPage loginPage = new LoginPage(driver, wait);
 
-        // Ждём кнопку "Выход"
-        waitAndClick(By.xpath("//button[text()='Выход']"));
+        // Переходим в личный кабинет
+        header.clickProfileLink();
+        profilePage.waitForLoad();
 
-        // Проверка — редирект на /login
-        boolean onLoginPage = wait.until(ExpectedConditions.urlContains("/login"));
-        assertTrue(onLoginPage, "Не произошёл выход — пользователь остался в системе.");
-    }
+        // Нажимаем 'Выход'
+        profilePage.clickLogoutButton();
 
-    // Утилиты
-    private void waitAndClick(By locator) {
-        wait.until(ExpectedConditions.elementToBeClickable(locator)).click();
-    }
-
-    private void waitAndSendKeys(By locator, String text) {
-        WebElement el = wait.until(ExpectedConditions.visibilityOfElementLocated(locator));
-        el.clear();
-        el.sendKeys(text);
-    }
-
-    private static String generateEmail() {
-        return "user_" + UUID.randomUUID().toString().substring(0, 8) + "@example.com";
+        // Проверяем, что оказались на странице логина
+        loginPage.waitForLoad();
+        assertTrue(driver.getCurrentUrl().endsWith("/login"), "Не произошел редирект на страницу входа после выхода.");
     }
 }
-

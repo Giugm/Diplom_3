@@ -8,8 +8,7 @@ public class Config {
     private static final Properties properties = new Properties();
 
     static {
-        try {
-            FileInputStream fis = new FileInputStream("src/test/resources/config.properties");
+        try (FileInputStream fis = new FileInputStream("src/test/resources/config.properties")) {
             properties.load(fis);
         } catch (IOException e) {
             throw new RuntimeException("Не удалось загрузить config.properties", e);
@@ -20,4 +19,3 @@ public class Config {
         return properties.getProperty(key);
     }
 }
-

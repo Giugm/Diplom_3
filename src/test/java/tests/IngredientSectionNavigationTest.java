@@ -1,86 +1,50 @@
 package tests;
 
-import io.qameta.allure.*;
-import org.junit.jupiter.api.*;
-import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.support.ui.*;
+import io.qameta.allure.Epic;
+import io.qameta.allure.Feature;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import pages.MainPage;
+import utils.BaseTest;
 
-import java.time.Duration;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.jupiter.api.Assertions.*;
-import io.qameta.allure.junit5.AllureJunit5;
-import org.junit.jupiter.api.extension.ExtendWith;
-
-
-@ExtendWith(AllureJunit5.class)
-@Epic("Stellar Burgers")
+@Epic("Конструктор")
 @Feature("Навигация по разделам ингредиентов")
-public class IngredientSectionNavigationTest {
+public class IngredientSectionNavigationTest extends BaseTest {
 
-    private WebDriver driver;
-    private WebDriverWait wait;
-    private final String baseUrl = "https://stellarburgers.nomoreparties.site";
+    // Для этого теста не нужна авторизация, поэтому нет @BeforeEach с созданием юзера
 
     @BeforeEach
-    void setUp() {
-        driver = new ChromeDriver();
-        driver.manage().window().maximize();
-        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-    }
-
-    @AfterEach
-    void tearDown() {
-        driver.quit();
+    void openMainPage() {
+        driver.get(utils.Config.get("base.url"));
     }
 
     @Test
-    @DisplayName("Переход к разделу Соусы и проверка наличия Соуса Spicy-X")
-    @Severity(SeverityLevel.NORMAL)
-    void navigateToSaucesSection() {
-        driver.get(baseUrl);
-        waitAndClick(By.xpath("//*[contains (@class, 'tab_tab')]/span[contains(text(),'Соусы')]"));
-        boolean sauceVisible = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//*[contains(@class,'BurgerIngredient')]/p[contains(text(),'Соус Spicy-X')]")
-        )).isDisplayed();
-        assertTrue(sauceVisible, "Соус Spicy-X не отображается после перехода.");
+    @DisplayName("Переход к разделу 'Соусы'")
+    void navigationToSaucesSectionIsSuccessful() {
+        MainPage mainPage = new MainPage(driver, wait);
+        mainPage.selectSaucesTab();
+        assertTrue(mainPage.isTabActive("Соусы"), "Вкладка 'Соусы' не стала активной.");
     }
 
     @Test
-    @DisplayName("Переход к разделу Начинки и проверка наличия мяса моллюсков")
-    @Severity(SeverityLevel.NORMAL)
-    void navigateToFillingsSection() {
-        driver.get(baseUrl);
-        waitAndClick(By.xpath("//*[contains (@class, 'tab_tab')]/span[contains(text(),'Начинки')]"));
-        boolean fillingVisible = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//*[contains(@class,'BurgerIngredient')]/p[contains(text(),'Мясо бессмертных моллюсков Protostomia')]")
-        )).isDisplayed();
-        assertTrue(fillingVisible, "Начинка 'Мясо моллюсков' не отображается после перехода.");
+    @DisplayName("Переход к разделу 'Начинки'")
+    void navigationToFillingsSectionIsSuccessful() {
+        MainPage mainPage = new MainPage(driver, wait);
+        mainPage.selectFillingsTab();
+        assertTrue(mainPage.isTabActive("Начинки"), "Вкладка 'Начинки' не стала активной.");
     }
 
     @Test
-    @DisplayName("Переход к Соусам и обратно к Булкам")
-    @Severity(SeverityLevel.NORMAL)
-    void navigateToSaucesThenBackToBuns() {
-        driver.get(baseUrl);
-
-        // Переход к Соусам
-        waitAndClick(By.xpath("//*[contains (@class, 'tab_tab')]/span[contains(text(),'Соусы')]"));
-        wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//*[contains(@class,'BurgerIngredient')]/p[contains(text(),'Соус Spicy-X')]")
-        ));
-
-        // Переход обратно к Булкам
-        waitAndClick(By.xpath("//*[contains (@class, 'tab_tab')]/span[contains(text(),'Булки')]"));
-        boolean bunVisible = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//*[contains(@class,'BurgerIngredient')]/p[contains(text(),'Флюоресцентная булка R2-D3')]")
-        )).isDisplayed();
-        assertTrue(bunVisible, "Булка R2-D3 не отображается после возврата к разделу Булки.");
-    }
-
-    // Утилита для кликов
-    private void waitAndClick(By locator) {
-        wait.until(ExpectedConditions.elementToBeClickable(locator)).click();
+    @DisplayName("Переход к разделу 'Булки' после выбора другого раздела")
+    void navigationToBunsSectionIsSuccessful() {
+        MainPage mainPage = new MainPage(driver, wait);
+        // Сначала переходим на другую вкладку
+        mainPage.selectSaucesTab();
+        // Затем возвращаемся на булки
+        mainPage.selectBunsTab();
+        assertTrue(mainPage.isTabActive("Булки"), "Вкладка 'Булки' не стала активной.");
     }
 }
-

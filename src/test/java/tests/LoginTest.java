@@ -1,138 +1,101 @@
 package tests;
 
-import org.junit.jupiter.api.*;
-import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
-import io.qameta.allure.*;
-import org.openqa.selenium.support.ui.WebDriverWait;
-import org.openqa.selenium.support.ui.ExpectedConditions;
+import api.UserClient;
+import api.models.User;
+import io.qameta.allure.Epic;
+import io.qameta.allure.Feature;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import pages.*;
+import utils.BaseTest;
+import utils.UserGenerator;
 
-import java.time.Duration;
-import java.util.UUID;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.jupiter.api.Assertions.*;
-import io.qameta.allure.junit5.AllureJunit5;
-import org.junit.jupiter.api.extension.ExtendWith;
+@Epic("Авторизация пользователя")
+@Feature("Вход в систему через различные точки входа")
+public class LoginTest extends BaseTest {
 
-
-@ExtendWith(AllureJunit5.class)
-@Epic("Stellar Burgers")
-@Feature("Авторизация")
-public class LoginTest {
-
-    private WebDriver driver;
-    private WebDriverWait wait;
-    private final String baseUrl = "https://stellarburgers.nomoreparties.site";
-
-    // Каждый тест будет использовать одного и того же пользователя
-    private final String email = generateEmail();
-    private final String password = "test123";
-    private final String name = "TestUser";
+    private User user;
+    private String accessToken;
 
     @BeforeEach
-    void setUp() {
-        driver = new ChromeDriver();
-        driver.manage().window().maximize();
-        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-
-        // 1) Регистрируем нового пользователя
-        driver.get(baseUrl + "/register");
-        waitAndSendKeys(By.xpath("//label[text()='Имя']/following-sibling::input"), name);
-        waitAndSendKeys(By.xpath("//label[text()='Email']/following-sibling::input"), email);
-        waitAndSendKeys(By.xpath("//label[text()='Пароль']/following-sibling::input"), password);
-        waitAndClick(By.xpath("//button[text()='Зарегистрироваться']"));
-
-        // 2) Переходим на login и выходим, чтобы очистить сессию
-        wait.until(ExpectedConditions.urlContains("/login"));
-        waitAndSendKeys(By.xpath("//label[text()='Email']/following-sibling::input"), email);
-        waitAndSendKeys(By.xpath("//label[text()='Пароль']/following-sibling::input"), password);
-        waitAndClick(By.xpath("//button[contains(text(),'Войти')]"));
-
-        wait.until(ExpectedConditions.presenceOfElementLocated(
-                By.xpath("//*[text()='Оформить заказ']")));
-        waitAndClick(By.xpath("//*[text()='Личный Кабинет']"));
-        wait.until(ExpectedConditions.elementToBeClickable(
-                        By.xpath("//button[text()='Выход']")))
-                .click();
-
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    void setupUser() {
+        user = UserGenerator.randomUser();
+        accessToken = UserClient.registerUser(user)
+                .then().extract().body().path("accessToken");
     }
 
     @AfterEach
-    void tearDown() {
-        driver.quit();
+    void cleanupUser() {
+        UserClient.deleteUser(accessToken);
+    }
+
+    private void assertLoginSuccess() {
+        MainPage mainPage = new MainPage(driver, wait);
+        mainPage.waitForLoad();
+        assertTrue(driver.getCurrentUrl().endsWith("/"), "Не произошел редирект на главную страницу после логина.");
     }
 
     @Test
-    @DisplayName("Вход через кнопку «Войти в аккаунт» на главной странице")
-    @Severity(SeverityLevel.CRITICAL)
-    void loginViaMainLoginButton() {
-        driver.get(baseUrl);
-        waitAndClick(By.xpath("//button[text()='Войти в аккаунт']"));
-        performLoginAndAssertSuccess();
+    @DisplayName("Вход через кнопку 'Войти в аккаунт' на главной")
+    void loginViaMainPageButton() {
+        driver.get(utils.Config.get("base.url"));
+        MainPage mainPage = new MainPage(driver, wait);
+        LoginPage loginPage = new LoginPage(driver, wait);
+
+        mainPage.clickLoginButton();
+        loginPage.waitForLoad();
+        loginPage.login(user.getEmail(), user.getPassword());
+
+        assertLoginSuccess();
     }
 
     @Test
-    @DisplayName("Вход через кнопку «Личный Кабинет» на главной странице")
-    @Severity(SeverityLevel.CRITICAL)
-    void loginViaProfileButton() {
-        driver.get(baseUrl);
-        waitAndClick(By.xpath("//*[text()='Личный Кабинет']"));
-        performLoginAndAssertSuccess();
+    @DisplayName("Вход через 'Личный Кабинет' в хэдере")
+    void loginViaHeaderProfileLink() {
+        driver.get(utils.Config.get("base.url"));
+        HeaderPage header = new HeaderPage(driver, wait);
+        LoginPage loginPage = new LoginPage(driver, wait);
+
+        header.clickProfileLink();
+        loginPage.waitForLoad();
+        loginPage.login(user.getEmail(), user.getPassword());
+
+        assertLoginSuccess();
     }
 
     @Test
-    @DisplayName("Вход через ссылку «Войти» на странице регистрации")
-    @Severity(SeverityLevel.CRITICAL)
-    void loginViaRegisterPageLink() {
-        driver.get(baseUrl + "/register");
-        waitAndClick(By.xpath("//*[text()='Войти']"));
-        performLoginAndAssertSuccess();
+    @DisplayName("Вход со страницы регистрации")
+    void loginViaRegistrationPageLink() {
+        RegistrationPage registrationPage = new RegistrationPage(driver, wait);
+        LoginPage loginPage = new LoginPage(driver, wait);
+
+        registrationPage.open();
+        registrationPage.clickLoginLink();
+
+        loginPage.waitForLoad();
+        loginPage.login(user.getEmail(), user.getPassword());
+
+        assertLoginSuccess();
     }
 
     @Test
-    @DisplayName("Вход через ссылку «Войти» на странице восстановления пароля")
-    @Severity(SeverityLevel.CRITICAL)
-    void loginViaForgotPasswordLink() {
-        driver.get(baseUrl + "/forgot-password");
-        waitAndClick(By.xpath("//*[text()='Войти']"));
-        performLoginAndAssertSuccess();
-    }
+    @DisplayName("Вход со страницы восстановления пароля")
+    void loginViaForgotPasswordPageLink() {
+        ForgotPasswordPage forgotPasswordPage = new ForgotPasswordPage(driver, wait);
+        LoginPage loginPage = new LoginPage(driver, wait);
 
-    // Общая логика для заполнения формы и проверки успешного входа
-    private void performLoginAndAssertSuccess() {
-        wait.until(ExpectedConditions.urlContains("/login"));
-        waitAndSendKeys(By.xpath("//label[text()='Email']/following-sibling::input"), email);
-        waitAndSendKeys(By.xpath("//label[text()='Пароль']/following-sibling::input"), password);
-        waitAndClick(By.xpath("//button[contains(text(),'Войти')]"));
+        forgotPasswordPage.open();
+        forgotPasswordPage.clickLoginLink();
 
-        boolean isAuthorized = wait
-                .until(ExpectedConditions.presenceOfElementLocated(
-                        By.xpath("//*[text()='Оформить заказ']")))
-                .isDisplayed();
-        assertTrue(isAuthorized, "Авторизация не удалась.");
-    }
+        loginPage.waitForLoad();
+        loginPage.login(user.getEmail(), user.getPassword());
 
-    // Утилиты для надёжных кликов и ввода
-    private void waitAndClick(By locator) {
-        wait.until(ExpectedConditions.elementToBeClickable(locator))
-                .click();
-    }
-
-    private void waitAndSendKeys(By locator, String text) {
-        WebElement el = wait.until(ExpectedConditions.visibilityOfElementLocated(locator));
-        el.clear();
-        el.sendKeys(text);
-    }
-
-    private static String generateEmail() {
-        return "user_" +
-                UUID.randomUUID().toString().substring(0, 8) +
-                "@example.com";
+        assertLoginSuccess();
     }
 }
+
 
