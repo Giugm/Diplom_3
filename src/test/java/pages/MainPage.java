@@ -15,6 +15,7 @@ public class MainPage {
     private final By saucesTab = By.xpath("//span[text()='Соусы']/parent::div");
     private final By fillingsTab = By.xpath("//span[text()='Начинки']/parent::div");
     private final By bunsTab = By.xpath("//span[text()='Булки']/parent::div");
+    private final String activeTabPattern = "//span[text()='%s']/parent::div[contains(@class, 'current')]";
 
     public MainPage(WebDriver driver, WebDriverWait wait) {
         this.driver = driver;
@@ -48,7 +49,7 @@ public class MainPage {
 
     @Step("Проверить, что вкладка {tabName} активна")
     public boolean isTabActive(String tabName) {
-        By activeTab = By.xpath(String.format("//span[text()='%s']/parent::div[contains(@class, 'current')]", tabName));
+        By activeTab = By.xpath(String.format(activeTabPattern, tabName));
         return wait.until(ExpectedConditions.visibilityOfElementLocated(activeTab)).isDisplayed();
     }
 }

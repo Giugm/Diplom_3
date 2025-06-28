@@ -9,7 +9,7 @@ import utils.Config;
 import static io.restassured.RestAssured.given;
 
 public class ApiClient {
-    private static final Gson gson = new Gson();
+
 
     static {
         RestAssured.baseURI = Config.get("api.base.url");
@@ -20,7 +20,7 @@ public class ApiClient {
     }
 
     public static Response post(String path, Object body) {
-        return prepareRequest().body(gson.toJson(body)).post(path);
+        return prepareRequest().body(body).post(path);
     }
 
     public static Response delete(String path, String token) {
